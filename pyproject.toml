@@ -1,0 +1,14 @@
+[project]
+name = "smm-agents"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "feedparser>=6.0.11",
+    "loguru>=0.7.3",
+    "lxml[html-clean]>=5.4.0",
+    "newspaper3k>=0.2.8",
+    "openai>=1.83.0",
+    "pydantic-settings>=2.9.1",
+    "requests>=2.32.3",
+]
