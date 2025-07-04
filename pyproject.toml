@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.12"
 dependencies = [
+    "aiogram>=3.20.0.post0",
+    "aiosqlite>=0.21.0",
+    "alembic>=1.16.2",
     "feedparser>=6.0.11",
     "loguru>=0.7.3",
     "lxml[html-clean]>=5.4.0",
@@ -11,4 +14,5 @@ dependencies = [
     "openai>=1.83.0",
     "pydantic-settings>=2.9.1",
     "requests>=2.32.3",
+    "sqlalchemy[asyncio]>=2.0.41",
 ]
