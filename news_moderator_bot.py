@@ -14,9 +14,7 @@ logging.basicConfig(level=logging.INFO)
 class NewsModeratorBot:
     def __init__(self):
         self.settings = Settings()
-        # self.bot = Bot(token=self.settings.moderator_bot_token)
-        # self.bot = Bot(token=self.settings.moderator_bot_token)
-        self.bot = Bot(token="7654803812:AAGDho-TAUiaA6QK6bN0-0hQ0ztpvpvECLU")
+        self.bot = Bot(token=self.settings.moderator_bot_token)
         self.dp = Dispatcher()
         self.pending_news: Dict[str, Dict] = {}  # Хранение ожидающих модерации новостей
         self.setup_handlers()
