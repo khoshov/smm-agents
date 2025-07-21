@@ -1,0 +1,53 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: smm-agents
+    restart: unless-stopped
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+      - ../telegram_bot.db:/app/telegram_bot.db
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - ../.env
+    depends_on:
+      - db
+    networks:
+      - smm-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: smm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smm_agents
+      POSTGRES_USER: ${DB_USER:-smm_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-smm_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - smm-network
+
+  adminer:
+    image: adminer:latest
+    container_name: smm-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    networks:
+      - smm-network
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+
+networks:
+  smm-network:
+    driver: bridge 
