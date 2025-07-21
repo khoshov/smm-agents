@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
-from models import User, News
+from src.database.models import User, News
 from typing import Optional, List
 from datetime import datetime
 

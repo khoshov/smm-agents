@@ -42,4 +42,4 @@ RUN uv run python -c "import nltk; nltk.download('punkt_tab', quiet=True)"
 EXPOSE 8000
 
 # Команда по умолчанию
-CMD ["uv", "run", "python", "-m", "src.main"] 
+CMD ["uv", "run", "python", "src/api_server.py"] 

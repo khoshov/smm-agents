@@ -1,553 +1,584 @@
-# API Документация SMM Agents
+# API Documentation
 
-Подробная документация по программному интерфейсу системы модерации и публикации новостей.
+Подробная документация по API системы SMM Agents.
 
-## 📋 Обзор
+## 🌐 FastAPI Endpoints
 
-SMM Agents предоставляет программный интерфейс для:
-- Управления новостями (создание, модерация, публикация)
-- Управления пользователями и модераторами
-- Интеграции с Telegram ботами
-- Статистики и отчетности
-
-## 🗄️ База данных
-
-### Модели данных
-
-#### User (Пользователи)
-```python
-class User(Base):
-    id: int                    # Первичный ключ
-    telegram_id: int           # ID пользователя в Telegram (уникальный)
-    username: str              # Имя пользователя
-    first_name: str            # Имя
-    last_name: str             # Фамилия
-    is_active: bool            # Активен ли пользователь
-    is_moderator: bool         # Является ли модератором
-    created_at: datetime       # Дата создания
-    updated_at: datetime       # Дата обновления
+### Базовый URL
+```
+http://localhost:8000/api/v1
 ```
 
-#### News (Новости)
-```python
-class News(Base):
-    id: int                    # Первичный ключ
-    url: str                   # URL источника новости (опционально)
-    title: str                 # Заголовок новости
-    content: str               # Текст новости
-    is_moderated: bool         # Прошла ли модерацию
-    is_approved: bool          # Одобрена ли новость (True/False/None)
-    is_published: bool         # Опубликована ли в канале
-    moderator_id: int          # ID модератора, который принял решение
-    moderator_name: str        # Имя модератора
-    published_at: datetime     # Время публикации
-    created_at: datetime       # Дата создания
-    updated_at: datetime       # Дата обновления
+### Документация
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## 📊 Health Check
+
+### Проверка состояния API
+```http
+GET /api/v1/health
 ```
 
-## 👥 API пользователей (UserCRUD)
-
-### Создание пользователя
-```python
-from src.database.crud import UserCRUD
-from src.database.database import AsyncSessionLocal
-
-async with AsyncSessionLocal() as session:
-    user = await UserCRUD.create_user(
-        session=session,
-        telegram_id=12345678,
-        username="user123",
-        first_name="Иван",
-        last_name="Петров",
-        is_moderator=False
-    )
+**Ответ:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00",
+  "version": "1.0.0"
+}
 ```
 
-### Получение пользователя
-```python
-# По Telegram ID
-user = await UserCRUD.get_user_by_telegram_id(session, telegram_id=12345678)
-
-# По ID в базе
-user = await UserCRUD.get_user(session, user_id=1)
-
-# Все пользователи
-users = await UserCRUD.get_users(session, skip=0, limit=100)
-
-# Только модераторы
-moderators = await UserCRUD.get_moderators(session)
-```
-
-### Обновление пользователя
-```python
-# Назначение модератором
-updated_user = await UserCRUD.update_user(
-    session=session,
-    user_id=1,
-    is_moderator=True
-)
-
-# Обновление профиля
-updated_user = await UserCRUD.update_user(
-    session=session,
-    user_id=1,
-    first_name="Новое имя",
-    username="new_username"
-)
-```
-
-### Удаление пользователя
-```python
-deleted = await UserCRUD.delete_user(session, user_id=1)
-```
-
-## 📰 API новостей (NewsCRUD)
+## 📰 News API
 
 ### Создание новости
+```http
+POST /api/v1/news
+```
+
+**Тело запроса:**
+```json
+{
+  "title": "Заголовок новости",
+  "content": "Содержание новости",
+  "url": "https://example.com/news"
+}
+```
+
+**Ответ:**
+```json
+{
+  "id": 1,
+  "title": "Заголовок новости",
+  "content": "Содержание новости",
+  "url": "https://example.com/news",
+  "is_moderated": false,
+  "is_approved": null,
+  "is_published": false,
+  "moderator_id": null,
+  "moderator_name": null,
+  "published_at": null,
+  "created_at": "2024-01-15T10:30:00",
+  "updated_at": null
+}
+```
+
+### Получение списка новостей
+```http
+GET /api/v1/news?page=1&size=20&status_filter=pending
+```
+
+**Параметры:**
+- `page` (int): Номер страницы (по умолчанию: 1)
+- `size` (int): Размер страницы (по умолчанию: 20, максимум: 100)
+- `status_filter` (string): Фильтр по статусу:
+  - `pending` - ожидают модерации
+  - `approved` - одобренные
+  - `rejected` - отклоненные
+  - `published` - опубликованные
+
+**Ответ:**
+```json
+{
+  "items": [...],
+  "total": 100,
+  "page": 1,
+  "size": 20,
+  "pages": 5
+}
+```
+
+### Получение конкретной новости
+```http
+GET /api/v1/news/{news_id}
+```
+
+### Обновление новости
+```http
+PUT /api/v1/news/{news_id}
+```
+
+**Тело запроса:**
+```json
+{
+  "title": "Обновленный заголовок",
+  "content": "Обновленное содержание"
+}
+```
+
+### Модерация новости
+```http
+POST /api/v1/news/{news_id}/moderate
+```
+
+**Тело запроса:**
+```json
+{
+  "is_approved": true,
+  "moderator_id": 123456789,
+  "moderator_name": "Иван Иванов"
+}
+```
+
+### Публикация новости
+```http
+POST /api/v1/news/{news_id}/publish
+```
+
+### Удаление новости
+```http
+DELETE /api/v1/news/{news_id}
+```
+
+## 👥 Users API
+
+### Создание пользователя
+```http
+POST /api/v1/users
+```
+
+**Тело запроса:**
+```json
+{
+  "telegram_id": 123456789,
+  "username": "user123",
+  "first_name": "Иван",
+  "last_name": "Иванов",
+  "is_moderator": false
+}
+```
+
+### Получение списка пользователей
+```http
+GET /api/v1/users
+```
+
+### Получение списка модераторов
+```http
+GET /api/v1/users/moderators
+```
+
+## 📈 Statistics API
+
+### Получение статистики
+```http
+GET /api/v1/stats
+```
+
+**Ответ:**
+```json
+{
+  "total_news": 150,
+  "pending_moderation": 25,
+  "approved_news": 100,
+  "rejected_news": 15,
+  "published_news": 80,
+  "total_users": 50,
+  "active_moderators": 5
+}
+```
+
+## 🔧 Database CRUD API
+
+### UserCRUD
+
+#### Создание пользователя
+```python
+from src.database.crud import UserCRUD
+
+user = await UserCRUD.create_user(
+    session=db_session,
+    telegram_id=123456789,
+    username="user123",
+    first_name="Иван",
+    last_name="Иванов",
+    is_moderator=False
+)
+```
+
+#### Получение пользователя по Telegram ID
+```python
+user = await UserCRUD.get_user_by_telegram_id(db_session, 123456789)
+```
+
+#### Получение всех пользователей
+```python
+users = await UserCRUD.get_users(db_session)
+```
+
+#### Получение модераторов
+```python
+moderators = await UserCRUD.get_moderators(db_session)
+```
+
+#### Обновление пользователя
+```python
+updated_user = await UserCRUD.update_user(
+    db_session, 
+    user_id, 
+    is_moderator=True
+)
+```
+
+#### Удаление пользователя
+```python
+deleted = await UserCRUD.delete_user(db_session, user_id)
+```
+
+### NewsCRUD
+
+#### Создание новости
 ```python
 from src.database.crud import NewsCRUD
 
 news = await NewsCRUD.create_news(
-    session=session,
-    title="Заголовок новости",
-    content="Полный текст новости...",
-    url="https://example.com/news/123"  # опционально
+    session=db_session,
+    title="Заголовок",
+    content="Содержание",
+    url="https://example.com"
 )
 ```
 
-### Получение новостей
+#### Получение новости по ID
 ```python
-# Все новости
-all_news = await NewsCRUD.get_all_news(session, skip=0, limit=50)
-
-# Ожидающие модерации
-pending_news = await NewsCRUD.get_pending_news(session)
-
-# Одобренные новости
-approved_news = await NewsCRUD.get_approved_news(session)
-
-# Отклоненные новости
-rejected_news = await NewsCRUD.get_rejected_news(session)
-
-# Опубликованные новости
-published_news = await NewsCRUD.get_published_news(session)
-
-# Одобренные, но не опубликованные
-unpublished_approved = await NewsCRUD.get_unpublished_approved_news(session)
-
-# Конкретная новость по ID
-news = await NewsCRUD.get_news(session, news_id=1)
+news = await NewsCRUD.get_news(db_session, news_id)
 ```
 
-### Модерация новости
+#### Получение всех новостей
 ```python
-# Одобрение новости
+all_news = await NewsCRUD.get_all_news(db_session)
+```
+
+#### Получение новостей по статусу
+```python
+pending_news = await NewsCRUD.get_pending_news(db_session)
+approved_news = await NewsCRUD.get_approved_news(db_session)
+rejected_news = await NewsCRUD.get_rejected_news(db_session)
+published_news = await NewsCRUD.get_published_news(db_session)
+```
+
+#### Модерация новости
+```python
 moderated_news = await NewsCRUD.moderate_news(
-    session=session,
-    news_id=1,
+    session=db_session,
+    news_id=news_id,
     is_approved=True,
-    moderator_id=12345678,
-    moderator_name="Модератор Иван"
-)
-
-# Отклонение новости
-moderated_news = await NewsCRUD.moderate_news(
-    session=session,
-    news_id=1,
-    is_approved=False,
-    moderator_id=12345678,
-    moderator_name="Модератор Иван"
+    moderator_id=123456789,
+    moderator_name="Модератор"
 )
 ```
 
-### Публикация новости
+#### Публикация новости
 ```python
-# Отметка новости как опубликованной
-published_news = await NewsCRUD.publish_news(session, news_id=1)
-
-# Публикация с указанием времени
-from datetime import datetime
-published_news = await NewsCRUD.publish_news(
-    session, 
-    news_id=1, 
-    published_at=datetime.now()
-)
+published_news = await NewsCRUD.publish_news(db_session, news_id)
 ```
 
-### Обновление новости
+#### Обновление новости
 ```python
 updated_news = await NewsCRUD.update_news(
-    session=session,
-    news_id=1,
-    title="Обновленный заголовок",
-    content="Обновленный текст"
+    db_session, 
+    news_id, 
+    title="Новый заголовок"
 )
 ```
 
-### Удаление новости
+#### Удаление новости
 ```python
-deleted = await NewsCRUD.delete_news(session, news_id=1)
+deleted = await NewsCRUD.delete_news(db_session, news_id)
 ```
 
-## 🤖 API Telegram ботов
+## 🤖 Bot API
 
-### Бот модератора (NewsModeratorBot)
+### NewsModeratorBot
 
 #### Инициализация
 ```python
 from src.bots.news_moderator_bot import NewsModeratorBot
 
 bot = NewsModeratorBot(
-    publisher_bot_token="токен_бота_издателя",
-    channel_id="@канал_для_публикации"
+    publisher_bot_token="your_publisher_token",
+    channel_id="@your_channel"
 )
 ```
 
 #### Запуск бота
 ```python
-# Запуск polling
 await bot.start_polling()
+```
 
-# Остановка
+#### Остановка бота
+```python
 await bot.stop_polling()
 ```
 
-#### Отправка новости на модерацию
-```python
-# Отправка новости модераторам
-await bot.send_news_for_moderation(news_id=1)
+#### Команды бота
+- `/start` - Приветствие
+- `/moderator` - Получение прав модератора
+- `/stats` - Статистика
+- `/publish` - Публикация новостей
 
-# Отправка новости конкретному модератору
-await bot.send_news_to_moderator(news_id=1, moderator_telegram_id=12345678)
-```
-
-#### Статистика
-```python
-stats = await bot.get_moderation_stats()
-# Возвращает:
-# {
-#     "total_news": 100,
-#     "pending_moderation": 10,
-#     "approved_news": 70,
-#     "rejected_news": 20,
-#     "published_news": 65
-# }
-```
-
-### Бот издателя (PublisherBot)
+### PublisherBot
 
 #### Инициализация
 ```python
 from src.bots.publisher_bot import PublisherBot
 
 publisher = PublisherBot(
-    bot_token="токен_бота_издателя",
-    channel_id="@канал_для_публикации"
+    bot_token="your_publisher_token",
+    channel_id="@your_channel"
 )
 ```
 
-#### Публикация новостей
+#### Запуск цикла публикации
 ```python
-# Публикация одной новости
-success = await publisher.publish_single_news(news_id=1)
-
-# Публикация всех одобренных новостей
-results = await publisher.publish_pending_news()
-
-# Публикация с форматированием
-success = await publisher.publish_news_with_format(
-    news_id=1,
-    include_url=True,
-    add_timestamp=True
-)
+await publisher.start_publishing_loop(interval_seconds=300)
 ```
 
-#### Автоматическая публикация
+#### Остановка цикла публикации
 ```python
-# Запуск цикла автоматической публикации
-await publisher.start_publishing_loop(interval_seconds=300)  # каждые 5 минут
-
-# Остановка цикла
 await publisher.stop_publishing_loop()
 ```
 
-#### Статистика издателя
+#### Публикация новости
 ```python
-stats = await publisher.get_publishing_stats()
-# Возвращает:
-# {
-#     "total_news": 100,
-#     "approved_news": 70,
-#     "published_news": 65,
-#     "pending_publication": 5,
-#     "failed_publications": 2
-# }
+await publisher.publish_news(news_item)
 ```
 
-## 🔍 API поиска и фильтрации
+## 🔍 Search & Filter API
 
 ### Поиск новостей
 ```python
+from src.database.crud import NewsCRUD
+
 # Поиск по заголовку
-news_by_title = await NewsCRUD.search_news_by_title(
-    session, 
-    search_term="искусственный интеллект"
-)
+news = await NewsCRUD.search_news_by_title(db_session, "ключевое слово")
 
-# Поиск по содержимому
-news_by_content = await NewsCRUD.search_news_by_content(
-    session, 
-    search_term="машинное обучение"
-)
-
-# Поиск по URL
-news_by_url = await NewsCRUD.get_news_by_url(
-    session, 
-    url="https://example.com/news/123"
-)
+# Поиск по содержанию
+news = await NewsCRUD.search_news_by_content(db_session, "ключевое слово")
 ```
 
-### Фильтрация по датам
+### Фильтрация новостей
 ```python
+# По дате создания
 from datetime import datetime, timedelta
 
-# Новости за последние 24 часа
+start_date = datetime.now() - timedelta(days=7)
 recent_news = await NewsCRUD.get_news_by_date_range(
-    session,
-    start_date=datetime.now() - timedelta(days=1),
-    end_date=datetime.now()
+    db_session, 
+    start_date, 
+    datetime.now()
 )
 
-# Новости опубликованные сегодня
-today_published = await NewsCRUD.get_published_news_by_date(
-    session,
-    date=datetime.now().date()
-)
-```
-
-### Фильтрация по модератору
-```python
-# Новости, модерированные конкретным модератором
+# По модератору
 moderator_news = await NewsCRUD.get_news_by_moderator(
-    session,
-    moderator_id=12345678
+    db_session, 
+    moderator_id
 )
 ```
 
-## 📊 API статистики
+## 📊 Statistics API
 
-### Общая статистика системы
+### Получение статистики
 ```python
-from src.database.crud import StatsCRUD
+from src.database.crud import NewsCRUD, UserCRUD
 
-# Общая статистика
-stats = await StatsCRUD.get_system_stats(session)
-# Возвращает:
-# {
-#     "total_users": 50,
-#     "active_moderators": 5,
-#     "total_news": 1000,
-#     "pending_moderation": 20,
-#     "approved_news": 800,
-#     "rejected_news": 180,
-#     "published_news": 750,
-#     "avg_moderation_time": "PT15M",  # 15 минут в ISO формате
-#     "publication_rate": 0.9375  # 93.75%
-# }
+# Статистика новостей
+all_news = await NewsCRUD.get_all_news(db_session)
+pending_news = await NewsCRUD.get_pending_news(db_session)
+approved_news = await NewsCRUD.get_approved_news(db_session)
+rejected_news = await NewsCRUD.get_rejected_news(db_session)
+published_news = await NewsCRUD.get_published_news(db_session)
+
+# Статистика пользователей
+all_users = await UserCRUD.get_users(db_session)
+moderators = await UserCRUD.get_moderators(db_session)
 ```
 
-### Статистика по периодам
-```python
-# Статистика за период
-period_stats = await StatsCRUD.get_stats_by_period(
-    session,
-    start_date=datetime.now() - timedelta(days=7),
-    end_date=datetime.now()
-)
+## 🛠 Utility API
 
-# Ежедневная статистика
-daily_stats = await StatsCRUD.get_daily_stats(session, days=30)
-```
-
-### Статистика модераторов
-```python
-# Производительность модераторов
-moderator_stats = await StatsCRUD.get_moderator_performance(session)
-# Возвращает список модераторов с их статистикой:
-# [
-#     {
-#         "moderator_id": 12345678,
-#         "moderator_name": "Иван",
-#         "total_moderated": 100,
-#         "approved": 85,
-#         "rejected": 15,
-#         "avg_time": "PT10M"
-#     }
-# ]
-```
-
-## 🔧 API утилит
-
-### Сбор новостей (Scout)
+### Scout (Сбор новостей)
 ```python
 from src.utils.scout import collect_insights
 
-insights = collect_insights(
+insights = await collect_insights(
     keywords=["искусственный интеллект", "AI"],
     google_api="your_google_api_key",
     google_cse="your_google_cse_id",
-    rss_feeds=[
-        "https://habr.com/ru/rss/all/all/?fl=ru",
-        "https://vc.ru/rss/all/?fl=ru"
-    ],
+    rss_feeds=["https://habr.com/ru/rss/all/all/?fl=ru"],
     max_per_source=5
 )
 ```
 
-### Копирайтинг (Copywriter)
+### Copywriter (Обработка текста)
 ```python
 from src.utils.copywriter import call_flowise_copywriter
 
-# Обработка статьи через Flowise
-processed_article = call_flowise_copywriter(
-    flow_id="your_flowise_flow_id",
-    article={
-        "title": "Заголовок",
-        "content": "Содержимое статьи",
-        "url": "https://example.com"
-    },
+post = await call_flowise_copywriter(
+    flow_id="your_flow_id",
+    article=news_item,
     flowise_host="http://localhost:3000"
 )
 ```
 
-## 🔒 API безопасности
+## 🔐 Security API
 
-### Проверка прав доступа
+### Проверка прав модератора
 ```python
-# Проверка, является ли пользователь модератором
-is_moderator = await UserCRUD.is_moderator(session, telegram_id=12345678)
+from src.database.crud import UserCRUD
 
-# Проверка активности пользователя
-is_active = await UserCRUD.is_user_active(session, telegram_id=12345678)
-
-# Получение прав пользователя
-permissions = await UserCRUD.get_user_permissions(session, telegram_id=12345678)
+is_moderator = await UserCRUD.is_moderator(db_session, telegram_id)
 ```
 
-### Аудит операций
+### Активация/деактивация пользователя
 ```python
-# Логирование действий модератора
-await AuditCRUD.log_moderation_action(
-    session=session,
-    moderator_id=12345678,
-    news_id=1,
-    action="approved",
-    timestamp=datetime.now()
-)
+# Активация
+await UserCRUD.activate_user(db_session, user_id)
 
-# Получение истории действий
-audit_log = await AuditCRUD.get_moderator_actions(
-    session,
-    moderator_id=12345678,
-    limit=50
-)
+# Деактивация
+await UserCRUD.deactivate_user(db_session, user_id)
 ```
 
-## 🚀 Примеры использования
+## 📝 Usage Examples
 
-### Полный цикл обработки новости
+### Полный цикл работы с новостью
+
 ```python
-async def process_news_article(article_data):
-    """Полный цикл: создание → модерация → публикация"""
-    
+import asyncio
+from src.database.database import AsyncSessionLocal
+from src.database.crud import NewsCRUD, UserCRUD
+from src.utils.scout import collect_insights
+
+async def full_news_cycle():
     async with AsyncSessionLocal() as session:
-        # 1. Создание новости
-        news = await NewsCRUD.create_news(
-            session=session,
-            title=article_data["title"],
-            content=article_data["content"],
-            url=article_data.get("url")
+        # 1. Собираем новости
+        insights = await collect_insights(
+            keywords=["технологии"],
+            google_api="your_key",
+            google_cse="your_cse",
+            rss_feeds=["https://habr.com/ru/rss/all/all/?fl=ru"]
         )
         
-        # 2. Отправка на модерацию
-        bot = NewsModeratorBot()
-        await bot.send_news_for_moderation(news.id)
+        # 2. Создаем новости в БД
+        for insight in insights:
+            news = await NewsCRUD.create_news(
+                session=session,
+                title=insight.get('title', ''),
+                content=insight.get('summary', ''),
+                url=insight.get('url')
+            )
+            print(f"Создана новость: {news.title}")
         
-        # 3. После модерации (в callback handler)
-        # Этот код выполняется в обработчике callback'а
-        if approved:
-            await NewsCRUD.moderate_news(
-                session=session,
-                news_id=news.id,
-                is_approved=True,
-                moderator_id=moderator_telegram_id,
-                moderator_name=moderator_name
-            )
-            
-            # 4. Автоматическая публикация
-            publisher = PublisherBot(bot_token, channel_id)
-            success = await publisher.publish_single_news(news.id)
-            
-            if success:
-                await NewsCRUD.publish_news(session, news.id)
+        # 3. Получаем статистику
+        pending = await NewsCRUD.get_pending_news(session)
+        print(f"Ожидают модерации: {len(pending)} новостей")
+
+# Запуск
+asyncio.run(full_news_cycle())
 ```
 
-### Массовая обработка новостей
+### Интеграция с внешними системами
+
 ```python
-async def bulk_process_rss_feeds():
-    """Массовая обработка RSS лент"""
-    
-    # Сбор новостей
-    rss_feeds = [
-        "https://habr.com/ru/rss/all/all/?fl=ru",
-        "https://vc.ru/rss/all/?fl=ru"
-    ]
-    
-    insights = collect_insights(
-        keywords=["AI", "машинное обучение"],
-        rss_feeds=rss_feeds,
-        max_per_source=10
-    )
-    
-    # Создание новостей в базе
-    async with AsyncSessionLocal() as session:
-        for article in insights:
-            await NewsCRUD.create_news(
-                session=session,
-                title=article["title"],
-                content=article["content"],
-                url=article.get("url")
+import httpx
+import asyncio
+
+async def external_integration():
+    async with httpx.AsyncClient() as client:
+        # Получаем список новостей через API
+        response = await client.get("http://localhost:8000/api/v1/news")
+        news_list = response.json()
+        
+        # Создаем новую новость
+        new_news = {
+            "title": "Новость из внешней системы",
+            "content": "Содержание новости",
+            "url": "https://example.com"
+        }
+        
+        response = await client.post(
+            "http://localhost:8000/api/v1/news",
+            json=new_news
+        )
+        
+        if response.status_code == 201:
+            news_id = response.json()["id"]
+            
+            # Модерируем новость
+            moderation_data = {
+                "is_approved": True,
+                "moderator_id": 123456789,
+                "moderator_name": "Внешний модератор"
+            }
+            
+            await client.post(
+                f"http://localhost:8000/api/v1/news/{news_id}/moderate",
+                json=moderation_data
             )
-    
-    # Отправка на модерацию
-    bot = NewsModeratorBot()
-    pending_news = await NewsCRUD.get_pending_news(session)
-    
-    for news in pending_news:
-        await bot.send_news_for_moderation(news.id)
+
+# Запуск
+asyncio.run(external_integration())
 ```
 
-## 🔧 Настройка и конфигурация
+## 🚀 Performance Tips
 
-### Конфигурация через переменные окружения
+### Оптимизация запросов
 ```python
-from src.config.settings import settings
+# Используйте пагинацию для больших списков
+news = await NewsCRUD.get_all_news(session, skip=0, limit=20)
 
-# Доступ к настройкам
-bot_token = settings.moderator_bot_token.get_secret_value()
-channel_id = settings.channel_id
-database_url = settings.database_url
+# Используйте фильтры для уменьшения объема данных
+pending_news = await NewsCRUD.get_pending_news(session)
 ```
 
-### Настройка логирования
+### Кэширование
+```python
+# Кэшируйте часто запрашиваемые данные
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def get_cached_stats():
+    # Логика получения статистики
+    pass
+```
+
+### Асинхронная обработка
+```python
+# Используйте asyncio.gather для параллельной обработки
+tasks = [
+    NewsCRUD.get_pending_news(session),
+    NewsCRUD.get_approved_news(session),
+    UserCRUD.get_moderators(session)
+]
+
+results = await asyncio.gather(*tasks)
+```
+
+## 🔧 Error Handling
+
+### Обработка ошибок в API
+```python
+from fastapi import HTTPException
+
+try:
+    news = await NewsCRUD.get_news(session, news_id)
+    if not news:
+        raise HTTPException(status_code=404, detail="Новость не найдена")
+except Exception as e:
+    raise HTTPException(status_code=500, detail=str(e))
+```
+
+### Логирование ошибок
 ```python
 import logging
-from src.config.settings import settings
 
-logging.basicConfig(
-    level=getattr(logging, settings.log_level),
-    format=settings.log_format
-)
+logger = logging.getLogger(__name__)
+
+try:
+    # Операция с БД
+    pass
+except Exception as e:
+    logger.error(f"Ошибка при работе с БД: {e}")
+    raise
 ```
 
-Эта документация покрывает основные возможности API системы SMM Agents. Для получения более подробной информации обращайтесь к исходному коду в соответствующих модулях. 
+Эта документация покрывает все основные возможности API системы SMM Agents! 
